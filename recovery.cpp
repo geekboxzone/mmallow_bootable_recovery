@@ -912,7 +912,8 @@ main(int argc, char **argv) {
     time_t start = time(NULL);
 
     redirect_stdio(TEMPORARY_LOG_FILE);
-
+    freopen("/dev/ttyFIQ0", "a", stdout); setbuf(stdout, NULL);
+    freopen("/dev/ttyFIQ0", "a", stderr); setbuf(stderr, NULL);
     // If this binary is started with the single argument "--adbd",
     // instead of being the normal recovery binary, it turns into kind
     // of a stripped-down version of adbd that only supports the

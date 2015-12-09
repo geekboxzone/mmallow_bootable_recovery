@@ -21,6 +21,7 @@
 
 class Device {
   public:
+    Device(){}
     Device(RecoveryUI* ui) : ui_(ui) { }
     virtual ~Device() { }
 
@@ -68,6 +69,8 @@ class Device {
         SHUTDOWN = 8,
         VIEW_RECOVERY_LOGS = 9,
         MOUNT_SYSTEM = 10,
+		APPLY_EXT = 11,
+		APPLY_CACHE = 12,
     };
 
     // Return the list of menu items (an array of strings,

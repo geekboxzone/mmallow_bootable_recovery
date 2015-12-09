@@ -27,6 +27,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#include <pixelflinger/pixelflinger.h>
+
 #include <linux/fb.h>
 #include <linux/kd.h>
 
@@ -52,6 +54,31 @@ static minui_backend my_backend = {
     .blank = fbdev_blank,
     .exit = fbdev_exit,
 };
+
+void rk_rotate_surface_180(GRSurface* surface)
+{
+    GGLuint width = surface->width;
+    GGLuint height = surface->height;
+    int byt = 4; // 4 byte for ARGB_8888 (2 byte for RGB_565) 
+
+    int length = width * height;
+    GGLubyte* des_data = (GGLubyte *)malloc(sizeof(GGLubyte)*length*byt);
+    memcpy(des_data,surface->data,sizeof(GGLubyte)*length*byt);
+
+    memset(surface->data, 0, sizeof(GGLubyte)*length*byt);
+    int i = 0;
+    for (i=0; i<length; i++)
+    {
+        surface->data[i*byt] = des_data[(length-i-1)*byt];
+        surface->data[i*byt+1] = des_data[(length-i-1)*byt+1];
+        surface->data[i*byt+2] = des_data[(length-i-1)*byt+2];
+        surface->data[i*byt+3] = des_data[(length-i-1)*byt+3];
+    }
+
+    free(des_data);
+
+}
+
 
 minui_backend* open_fbdev() {
     return &my_backend;
@@ -211,6 +238,9 @@ static GRSurface* fbdev_flip(minui_backend* backend __unused) {
         // then flip the driver so we're displaying the other buffer
         // instead.
         gr_draw = gr_framebuffer + displayed_buffer;
+#ifdef BOARD_HAS_FLIPPED_SCREEN
+        rk_rotate_surface_180( &gr_framebuffer[1-displayed_buffer]);
+#endif
         set_displayed_framebuffer(1-displayed_buffer);
     } else {
         // Copy from the in-memory surface to the framebuffer.

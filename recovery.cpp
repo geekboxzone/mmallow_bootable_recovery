@@ -16,6 +16,7 @@
 
 #include <ctype.h>
 #include <dirent.h>
+#include <fs_mgr.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -50,6 +51,8 @@
 #include "fuse_sideload.h"
 #include "fuse_sdcard_provider.h"
 
+#include "recovery_utils.h"
+#include "mtdutils/rk29.h"
 struct selabel_handle *sehandle;
 
 static const struct option OPTIONS[] = {
@@ -65,6 +68,7 @@ static const struct option OPTIONS[] = {
   { "stages", required_argument, NULL, 'g' },
   { "shutdown_after", no_argument, NULL, 'p' },
   { "reason", required_argument, NULL, 'r' },
+  { "wipe_all", no_argument, NULL, 'w'+'a' },
   { NULL, 0, NULL, 0 },
 };
 
@@ -925,6 +929,7 @@ main(int argc, char **argv) {
 
     load_volume_table();
     get_args(&argc, &argv);
+    dumpCmdArgs(argc, argv, 1);
 
     const char *send_intent = NULL;
     const char *update_package = NULL;
@@ -935,6 +940,7 @@ main(int argc, char **argv) {
     bool sideload_auto_reboot = false;
     bool just_exit = false;
     bool shutdown_after = false;
+    bool should_wipe_all = false;
 
     int arg;
     while ((arg = getopt_long(argc, argv, "", OPTIONS, NULL)) != -1) {
@@ -958,6 +964,7 @@ main(int argc, char **argv) {
         }
         case 'p': shutdown_after = true; break;
         case 'r': reason = optarg; break;
+        case 'w'+'a': { should_wipe_all = should_wipe_data = should_wipe_cache = true;show_text = true;} break;
         case '?':
             LOGE("Invalid command argument\n");
             continue;
@@ -1001,6 +1008,7 @@ main(int argc, char **argv) {
     printf("Command:");
     for (arg = 0; arg < argc; arg++) {
         printf(" \"%s\"", argv[arg]);
+		ui->Print("arg is %s\n",argv[arg]);
     }
     printf("\n");
 
@@ -1024,7 +1032,6 @@ main(int argc, char **argv) {
     printf("\n");
 
     ui->Print("Supported API: %d\n", RECOVERY_API_VERSION);
-
     int status = INSTALL_SUCCESS;
 
     if (update_package != NULL) {
@@ -1046,10 +1053,21 @@ main(int argc, char **argv) {
         if (!wipe_data(false, device)) {
             status = INSTALL_ERROR;
         }
+        if(should_wipe_all) {
+        	printf("resize /system \n");
+			Volume* v = volume_for_path("/system");
+			if(rk_check_and_resizefs(v->blk_device)) {
+				ui->Print("check and resize /system failed!\n");
+				status = INSTALL_ERROR;
+			}
+        }
     } else if (should_wipe_cache) {
+		ui->Print("should_wipe_cache\n");
         if (!wipe_cache(false, device)) {
             status = INSTALL_ERROR;
         }
+        if (erase_persistent_partition() == -1 ) status = INSTALL_ERROR;
+        if (status != INSTALL_SUCCESS) ui->Print("Data wipe failed.\n");
     } else if (sideload) {
         // 'adb reboot sideload' acts the same as user presses key combinations
         // to enter the sideload mode. When 'sideload-auto-reboot' is used, text
@@ -1088,7 +1106,8 @@ main(int argc, char **argv) {
     }
 
     Device::BuiltinAction after = shutdown_after ? Device::SHUTDOWN : Device::REBOOT;
-    if ((status != INSTALL_SUCCESS && !sideload_auto_reboot) || ui->IsTextVisible()) {
+    if ((status != INSTALL_SUCCESS && !sideload_auto_reboot)) {
+        ui->ShowText(true);
         Device::BuiltinAction temp = prompt_and_wait(device, status);
         if (temp != Device::NO_ACTION) {
             after = temp;

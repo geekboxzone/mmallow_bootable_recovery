@@ -3,7 +3,8 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
 	mtdutils.c \
-	mounts.c
+	mounts.c \
+	rk29.c
 
 LOCAL_MODULE := libmtdutils
 

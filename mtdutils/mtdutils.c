@@ -180,6 +180,7 @@ mtd_find_partition_by_name(const char *name)
         for (i = 0; i < g_mtd_state.partitions_allocd; i++) {
             MtdPartition *p = &g_mtd_state.partitions[i];
             if (p->device_index >= 0 && p->name != NULL) {
+                printf ("find_partition : p->name %s, name %s\n", p->name, name);
                 if (strcmp(p->name, name) == 0) {
                     return p;
                 }

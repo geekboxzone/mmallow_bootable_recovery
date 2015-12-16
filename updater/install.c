@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <fs_mgr.h>
 #include <selinux/selinux.h>
 #include <ftw.h>
 #include <sys/capability.h>
@@ -45,13 +46,42 @@
 #include "mtdutils/mounts.h"
 #include "mtdutils/mtdutils.h"
 #include "updater.h"
+#include "mtdutils/rk29.h"
 #include "install.h"
+#include "emmcutils/rk_emmcutils.h"
 #include "tune2fs.h"
 
 #ifdef USE_EXT4
 #include "make_ext4fs.h"
 #include "wipe.h"
 #endif
+static void load_volume_table();
+static Volume* volume_for_path(const char* path);
+static char* getDevicePath(char *mtdDevice);
+static struct fstab *fstab = NULL;
+static char* getDevicePath(char *mtdDevice) {
+	int emmcEnabled = getEmmcState();
+	char devicePath[128] = "/";
+	if(emmcEnabled) {
+		if(fstab == NULL) {
+			load_volume_table();
+		}
+	
+		if(strstr(mtdDevice, "/dev/block/rknand_")) {
+			strcat(devicePath, mtdDevice+18);
+			printf("mtd device %s\n", devicePath);
+			Volume* v = volume_for_path(devicePath);
+			if (v != NULL) {
+				printf("get volume path %s\n", v->blk_device);
+				return v->blk_device;
+			}else {
+				printf("Cannot load volume %s!\n", devicePath);
+			}
+		}
+	}
+
+	return mtdDevice;
+}
 
 void uiPrint(State* state, char* buffer) {
     char* line = strtok(buffer, "\n");
@@ -147,29 +177,31 @@ Value* MountFn(const char* name, State* state, int argc, Expr* argv[]) {
         setfscreatecon(NULL);
     }
 
+    char *device = getDevicePath(location);
+
     if (strcmp(partition_type, "MTD") == 0) {
         mtd_scan_partitions();
         const MtdPartition* mtd;
-        mtd = mtd_find_partition_by_name(location);
+        mtd = mtd_find_partition_by_name(device);
         if (mtd == NULL) {
             uiPrintf(state, "%s: no mtd partition named \"%s\"",
-                    name, location);
+                    name, device);
             result = strdup("");
             goto done;
         }
         if (mtd_mount_partition(mtd, mount_point, fs_type, 0 /* rw */) != 0) {
             uiPrintf(state, "mtd mount of %s failed: %s\n",
-                    location, strerror(errno));
+                    device, strerror(errno));
             result = strdup("");
             goto done;
         }
         result = mount_point;
     } else {
-        if (mount(location, mount_point, fs_type,
+        if (mount(device, mount_point, fs_type,
                   MS_NOATIME | MS_NODEV | MS_NODIRATIME,
                   has_mount_options ? mount_options : "") < 0) {
             uiPrintf(state, "%s: failed to mount %s at %s: %s\n",
-                    name, location, mount_point, strerror(errno));
+                    name, device, mount_point, strerror(errno));
             result = strdup("");
         } else {
             result = mount_point;
@@ -305,39 +337,41 @@ Value* FormatFn(const char* name, State* state, int argc, Expr* argv[]) {
         goto done;
     }
 
+    char *device = getDevicePath(location);
+
     if (strcmp(partition_type, "MTD") == 0) {
         mtd_scan_partitions();
-        const MtdPartition* mtd = mtd_find_partition_by_name(location);
+        const MtdPartition* mtd = mtd_find_partition_by_name(device);
         if (mtd == NULL) {
             printf("%s: no mtd partition named \"%s\"",
-                    name, location);
+                    name, device);
             result = strdup("");
             goto done;
         }
         MtdWriteContext* ctx = mtd_write_partition(mtd);
         if (ctx == NULL) {
-            printf("%s: can't write \"%s\"", name, location);
+            printf("%s: can't write \"%s\"", name, device);
             result = strdup("");
             goto done;
         }
         if (mtd_erase_blocks(ctx, -1) == -1) {
             mtd_write_close(ctx);
-            printf("%s: failed to erase \"%s\"", name, location);
+            printf("%s: failed to erase \"%s\"", name, device);
             result = strdup("");
             goto done;
         }
         if (mtd_write_close(ctx) != 0) {
-            printf("%s: failed to close \"%s\"", name, location);
+            printf("%s: failed to close \"%s\"", name, device);
             result = strdup("");
             goto done;
         }
         result = location;
 #ifdef USE_EXT4
     } else if (strcmp(fs_type, "ext4") == 0) {
-        int status = make_ext4fs(location, atoll(fs_size), mount_point, sehandle);
+        int status = make_ext4fs(device, atoll(fs_size), mount_point, sehandle);
         if (status != 0) {
             printf("%s: make_ext4fs failed (%d) on %s",
-                    name, status, location);
+                    name, status, device);
             result = strdup("");
             goto done;
         }
@@ -1126,6 +1160,50 @@ done:
     if (result != partition) FreeValue(partition_value);
     FreeValue(contents);
     return StringValue(result);
+}
+
+static void load_volume_table()
+{
+    int i;
+    int ret;
+	
+	if(fstab != NULL) {
+		printf("already load volume table.\n");
+    	return;
+	}
+	
+	int emmcState = getEmmcState();
+    if(emmcState) {
+		fstab = fs_mgr_read_fstab("/etc/recovery.emmc.fstab");
+	}else {
+    	fstab = fs_mgr_read_fstab("/etc/recovery.fstab");
+	}
+	
+    if (!fstab) {
+        printf("failed to read /etc/recovery.fstab\n");
+        return;
+    }
+
+    ret = fs_mgr_add_entry(fstab, "/tmp", "ramdisk", "ramdisk");
+    if (ret < 0 ) {
+        printf("failed to add /tmp entry to fstab\n");
+        fs_mgr_free_fstab(fstab);
+        fstab = NULL;
+        return;
+    }
+
+    printf("recovery filesystem table\n");
+    printf("=========================\n");
+    for (i = 0; i < fstab->num_entries; ++i) {
+        Volume* v = &fstab->recs[i];
+        printf("  %d %s %s %s %lld\n", i, v->mount_point, v->fs_type,
+               v->blk_device, v->length);
+    }
+    printf("\n");
+}
+
+static Volume* volume_for_path(const char* path) {
+    return fs_mgr_get_entry_for_mount_point(fstab, path);
 }
 
 // apply_patch_space(bytes)

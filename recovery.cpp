@@ -74,6 +74,7 @@ static const struct option OPTIONS[] = {
 
 static const char *CACHE_LOG_DIR = "/cache/recovery";
 static const char *COMMAND_FILE = "/cache/recovery/command";
+static const char *FLAG_FILE = "/cache/recovery/last_flag";
 static const char *INTENT_FILE = "/cache/recovery/intent";
 static const char *LOG_FILE = "/cache/recovery/log";
 static const char *LAST_INSTALL_FILE = "/cache/recovery/last_install";
@@ -82,6 +83,8 @@ static const char *CACHE_ROOT = "/cache";
 static const char *SDCARD_ROOT = "/sdcard";
 static const char *TEMPORARY_LOG_FILE = "/tmp/recovery.log";
 static const char *TEMPORARY_INSTALL_FILE = "/tmp/last_install";
+static char updatepath[128] = "\0";
+bool bAutoUpdateComplete = false;
 static const char *LAST_KMSG_FILE = "/cache/recovery/last_kmsg";
 static const char *LAST_LOG_FILE = "/cache/recovery/last_log";
 static const int KEEP_LOG_COUNT = 10;
@@ -403,6 +406,19 @@ finish_recovery(const char *send_intent) {
     struct bootloader_message boot;
     memset(&boot, 0, sizeof(boot));
     set_bootloader_message(&boot);
+ 	if (bAutoUpdateComplete==true) {
+		FILE *fp = fopen_path(FLAG_FILE, "w");
+		if (fp == NULL) {
+			LOGE("Can't open %s\n", FLAG_FILE);
+		}
+		char strflag[160]="success$path=";
+		strcat(strflag,updatepath);
+		if (fwrite(strflag, 1, sizeof(strflag), fp) != sizeof(strflag)) {
+			LOGE("write %s failed! \n", FLAG_FILE);
+		}
+		fclose(fp);
+		bAutoUpdateComplete=false;
+     }
 
     // Remove the command file, so recovery won't repeat indefinitely.
     if (ensure_path_mounted(COMMAND_FILE) != 0 ||
@@ -1037,10 +1053,13 @@ main(int argc, char **argv) {
     if (update_package != NULL) {
         status = install_package(update_package, &should_wipe_cache, TEMPORARY_INSTALL_FILE, true);
         if (status == INSTALL_SUCCESS && should_wipe_cache) {
-            wipe_cache(false, device);
+            if (erase_volume("/cache")) {
+                LOGE("Cache wipe (requested by package) failed.");
+            }
         }
         if (status != INSTALL_SUCCESS) {
             ui->Print("Installation aborted.\n");
+            ui->Print("OTA failed! Please power off the device to keep it in this state and file a bug report!\n");
 
             // If this is an eng or userdebug build, then automatically
             // turn the text display on if the script fails so the error
@@ -1048,6 +1067,8 @@ main(int argc, char **argv) {
             if (is_ro_debuggable()) {
                 ui->ShowText(true);
             }
+        }else {
+	 		bAutoUpdateComplete=true;
         }
     } else if (should_wipe_data) {
         if (!wipe_data(false, device)) {

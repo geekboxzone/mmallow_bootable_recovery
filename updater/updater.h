@@ -23,6 +23,8 @@
 #include <selinux/selinux.h>
 #include <selinux/label.h>
 
+typedef struct fstab_rec Volume;
+
 typedef struct {
     FILE* cmd_pipe;
     ZipArchive* package_zip;

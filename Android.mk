@@ -41,6 +41,7 @@ LOCAL_SRC_FILES := \
     screen_ui.cpp \
     ui.cpp \
     verifier.cpp \
+    rkimage.cpp	    \
 
 LOCAL_MODULE := recovery
 
@@ -77,8 +78,12 @@ LOCAL_STATIC_LIBRARIES := \
     liblog \
     libselinux \
     libstdc++ \
+    libutils \
     libm \
     libc \
+    libedify \
+    libapplypatch \
+    libcrc32 \
     librk_emmcutils  
 
 ifeq ($(TARGET_USERIMAGES_USE_EXT4), true)
@@ -135,4 +140,5 @@ include $(LOCAL_PATH)/minui/Android.mk \
     $(LOCAL_PATH)/uncrypt/Android.mk \
     $(LOCAL_PATH)/updater/Android.mk \
     $(LOCAL_PATH)/emmcutils/Android.mk	\
-    $(LOCAL_PATH)/applypatch/Android.mk
+    $(LOCAL_PATH)/applypatch/Android.mk \
+    $(LOCAL_PATH)/crc/Android.mk	\

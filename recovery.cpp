@@ -48,16 +48,21 @@
 #include "device.h"
 #include "adb_install.h"
 #include "adb.h"
+extern "C" {
+#include "rkimage.h"
+#include "mtdutils/rk29.h"
+}
 #include "fuse_sideload.h"
 #include "fuse_sdcard_provider.h"
 
 #include "recovery_utils.h"
-#include "mtdutils/rk29.h"
+
 struct selabel_handle *sehandle;
 
 static const struct option OPTIONS[] = {
   { "send_intent", required_argument, NULL, 'i' },
   { "update_package", required_argument, NULL, 'u' },
+  { "update_rkimage", required_argument, NULL, 'k' },   // support rkimage to update
   { "wipe_data", no_argument, NULL, 'w' },
   { "wipe_cache", no_argument, NULL, 'c' },
   { "show_text", no_argument, NULL, 't' },
@@ -93,6 +98,7 @@ RecoveryUI* ui = NULL;
 char* locale = NULL;
 char* stage = NULL;
 char* reason = NULL;
+bool bIfUpdateLoader = false;
 bool modified_flash = false;
 
 /*
@@ -958,6 +964,7 @@ main(int argc, char **argv) {
     bool just_exit = false;
     bool shutdown_after = false;
     bool should_wipe_all = false;
+	const char *update_rkimage = NULL;
 
     int arg;
     while ((arg = getopt_long(argc, argv, "", OPTIONS, NULL)) != -1) {
@@ -965,6 +972,7 @@ main(int argc, char **argv) {
         case 'i': send_intent = optarg; break;
         case 'u': update_package = optarg; break;
         case 'w': should_wipe_data = true; break;
+		case 'k':  update_rkimage = optarg;break;
         case 'c': should_wipe_cache = true; break;
         case 't': show_text = true; break;
         case 's': sideload = true; break;
@@ -1044,7 +1052,14 @@ main(int argc, char **argv) {
         }
     }
     printf("\n");
+    if (update_rkimage) {
+        // For backwards compatibility on the cache partition only, if
+        // we're given an old 'root' path "CACHE:foo", change it to
+        // "/cache/foo".
+        ui->Print("RK image: %s\n", update_rkimage);
 
+    }
+    printf("\n");
     property_list(print_property, NULL);
     printf("\n");
 
@@ -1071,6 +1086,14 @@ main(int argc, char **argv) {
         }else {
 	 		bAutoUpdateComplete=true;
         }
+    } else if (update_rkimage != NULL) {
+        I("to install rk_img : %s.", update_rkimage);
+        status = install_rkimage(update_rkimage);
+        if (status != INSTALL_SUCCESS) 
+			ui->Print("Installation aborted.\n");
+		else 
+        	bAutoUpdateComplete=true;
+
     } else if (should_wipe_data) {
         if (!wipe_data(false, device)) {
             status = INSTALL_ERROR;

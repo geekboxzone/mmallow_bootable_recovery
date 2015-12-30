@@ -1033,7 +1033,6 @@ main(int argc, char **argv) {
     printf("Command:");
     for (arg = 0; arg < argc; arg++) {
         printf(" \"%s\"", argv[arg]);
-		ui->Print("arg is %s\n",argv[arg]);
     }
     printf("\n");
 

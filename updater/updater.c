@@ -35,6 +35,9 @@
 // (Note it's "updateR-script", not the older "update-script".)
 #define SCRIPT_NAME "META-INF/com/google/android/updater-script"
 
+//add by mmk@rock-chips.com
+char* g_package_file;
+
 struct selabel_handle *sehandle;
 
 int main(int argc, char** argv) {
@@ -69,6 +72,8 @@ int main(int argc, char** argv) {
     // Extract the script from the package.
 
     const char* package_filename = argv[3];
+	g_package_file = package_filename;
+	
     MemMapping map;
     if (sysMapFile(package_filename, &map) != 0) {
         printf("failed to map package %s\n", argv[3]);

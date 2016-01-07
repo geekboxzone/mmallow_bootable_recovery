@@ -929,6 +929,24 @@ ui_print(const char* format, ...) {
     }
 }
 
+void SureMetadataMount() {
+    if (ensure_path_mounted("/metadata")) {
+        printf("mount metadata fail,so formate...\n");
+        tmplog_offset = 0;
+        format_volume("/metadata");
+        ensure_path_mounted("/metadata");
+    }
+}
+
+void SureCacheMount() {
+    if(ensure_path_mounted("/cache")) {
+        printf("mount cache fail,so formate...\n");
+        tmplog_offset = 0;
+        format_volume("/cache");
+        ensure_path_mounted("/cache");
+    }
+}
+
 int
 main(int argc, char **argv) {
     time_t start = time(NULL);
@@ -1029,6 +1047,14 @@ main(int argc, char **argv) {
     }
 
     device->StartRecovery();
+
+    SureCacheMount();
+    SureMetadataMount();
+
+    //dump ro.bootmode type
+    char bootmode[256];
+    property_get("ro.bootmode", bootmode, "unknown");
+    printf("bootmode = %s \n", bootmode);
 
     printf("Command:");
     for (arg = 0; arg < argc; arg++) {

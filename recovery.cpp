@@ -89,6 +89,7 @@ static const char *SDCARD_ROOT = "/sdcard";
 static const char *TEMPORARY_LOG_FILE = "/tmp/recovery.log";
 static const char *TEMPORARY_INSTALL_FILE = "/tmp/last_install";
 static char updatepath[128] = "\0";
+bool bNeedClearMisc=true;
 bool bAutoUpdateComplete = false;
 static const char *LAST_KMSG_FILE = "/cache/recovery/last_kmsg";
 static const char *LAST_LOG_FILE = "/cache/recovery/last_log";
@@ -409,9 +410,12 @@ finish_recovery(const char *send_intent) {
     copy_logs();
 
     // Reset to normal system boot so recovery won't cycle indefinitely.
-    struct bootloader_message boot;
-    memset(&boot, 0, sizeof(boot));
-    set_bootloader_message(&boot);
+    if( bNeedClearMisc ) {
+    	struct bootloader_message boot;
+    	memset(&boot, 0, sizeof(boot));
+    	set_bootloader_message(&boot);
+    }
+	
  	if (bAutoUpdateComplete==true) {
 		FILE *fp = fopen_path(FLAG_FILE, "w");
 		if (fp == NULL) {
@@ -1173,6 +1177,7 @@ main(int argc, char **argv) {
     if (!sideload_auto_reboot && (status == INSTALL_ERROR || status == INSTALL_CORRUPT)) {
         copy_logs();
         ui->SetBackground(RecoveryUI::ERROR);
+        bNeedClearMisc = true;
     }
 
     Device::BuiltinAction after = shutdown_after ? Device::SHUTDOWN : Device::REBOOT;

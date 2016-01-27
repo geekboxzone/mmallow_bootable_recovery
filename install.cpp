@@ -46,6 +46,7 @@ static const float VERIFICATION_PROGRESS_FRACTION = 0.25;
 static const float DEFAULT_FILES_PROGRESS_FRACTION = 0.4;
 static const float DEFAULT_IMAGE_PROGRESS_FRACTION = 0.1;
 
+extern bool bNeedClearMisc;
 // If the package contains an update binary, extract it and run it.
 static int
 try_update_binary(const char* path, ZipArchive* zip, bool* wipe_cache) {
@@ -197,6 +198,7 @@ try_update_binary(const char* path, ZipArchive* zip, bool* wipe_cache) {
 static int
 really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
 {
+	bNeedClearMisc = false;
     ui->SetBackground(RecoveryUI::INSTALLING_UPDATE);
     ui->Print("Finding update package...\n");
     // Give verification half the progress bar...

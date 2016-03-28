@@ -934,7 +934,7 @@ ui_print(const char* format, ...) {
 }
 
 void SureMetadataMount() {
-    if (ensure_path_mounted("/metadata")) {
+    if (ensure_path_mounted("/metadata") != 0) {
         printf("mount metadata fail,so formate...\n");
         tmplog_offset = 0;
         format_volume("/metadata");
@@ -943,7 +943,7 @@ void SureMetadataMount() {
 }
 
 void SureCacheMount() {
-    if(ensure_path_mounted("/cache")) {
+    if(ensure_path_mounted("/cache") != 0) {
         printf("mount cache fail,so formate...\n");
         tmplog_offset = 0;
         format_volume("/cache");
@@ -956,8 +956,14 @@ main(int argc, char **argv) {
     time_t start = time(NULL);
 
     redirect_stdio(TEMPORARY_LOG_FILE);
+//redirect log to serial output
+#ifdef TARGET_RK33xx
+    freopen("/dev/ttyS2", "a", stdout); setbuf(stdout, NULL);
+    freopen("/dev/ttyS2", "a", stderr); setbuf(stderr, NULL);
+#else
     freopen("/dev/ttyFIQ0", "a", stdout); setbuf(stdout, NULL);
     freopen("/dev/ttyFIQ0", "a", stderr); setbuf(stderr, NULL);
+#endif
     // If this binary is started with the single argument "--adbd",
     // instead of being the normal recovery binary, it turns into kind
     // of a stripped-down version of adbd that only supports the

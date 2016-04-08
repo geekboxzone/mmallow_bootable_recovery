@@ -13,7 +13,7 @@
 # limitations under the License.
 
 LOCAL_PATH := $(call my-dir)
-
+prebuilt_stdcxx_PATH := prebuilts/ndk/current/sources/cxx-stl/
 
 include $(CLEAR_VARS)
 
@@ -54,6 +54,15 @@ endif
 RECOVERY_API_VERSION := 3
 RECOVERY_FSTAB_VERSION := 2
 LOCAL_CFLAGS += -DRECOVERY_API_VERSION=$(RECOVERY_API_VERSION)
+LOCAL_CFLAGS += -D_FILE_OFFSET_BITS=64
+
+LOCAL_C_INCLUDES := \
+	$(prebuilt_stdcxx_PATH)/gnu-libstdc++/include\
+	$(prebuilt_stdcxx_PATH)/gnu-libstdc++/libs/armeabi-v7a/include\
+	bionic \
+	bionic/libstdc++/include \
+	$(LOCAL_PATH)/rkupdate
+LOCAL_CPPFLAGS += -fexceptions -frtti
 LOCAL_CFLAGS += -Wno-unused-parameter
 
 LOCAL_C_INCLUDES += \
@@ -77,12 +86,17 @@ LOCAL_STATIC_LIBRARIES := \
     libcutils \
     liblog \
     libselinux \
+    librkupdate\
+    libext2_uuid\
+    librkrsa\
+    libgnustl_static\
     libstdc++ \
     libutils \
     libm \
     libc \
     libedify \
     libapplypatch \
+    librsa \
     libcrc32 \
     librk_emmcutils  
 
@@ -159,4 +173,10 @@ include $(LOCAL_PATH)/minui/Android.mk \
     $(LOCAL_PATH)/updater/Android.mk \
     $(LOCAL_PATH)/emmcutils/Android.mk	\
     $(LOCAL_PATH)/applypatch/Android.mk \
+    $(LOCAL_PATH)/rsa/Android.mk	\
     $(LOCAL_PATH)/crc/Android.mk	\
+    $(LOCAL_PATH)/libxml2/Android.mk \
+    $(LOCAL_PATH)/rkupdate/stl/Android.mk \
+    $(LOCAL_PATH)/rkupdate/rsa/Android.mk \
+    $(LOCAL_PATH)/rkupdate/update/Android.mk
+    

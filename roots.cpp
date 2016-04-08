@@ -112,7 +112,11 @@ int ensure_path_mounted(const char* path) {
         return 0;
     }
 
-    mkdir(v->mount_point, 0755);  // in case it doesn't already exist
+    result = mkdir(v->mount_point, 0755);  // in case it doesn't already exist
+    if (result!=0)
+    {
+		printf("failed to create %s dir,err=%s!\n",v->mount_point,strerror(errno));
+	}
 
     if (strcmp(v->fs_type, "yaffs2") == 0) {
         // mount an MTD partition as a YAFFS2 filesystem.
@@ -126,11 +130,47 @@ int ensure_path_mounted(const char* path) {
         }
         return mtd_mount_partition(partition, v->mount_point, v->fs_type, 0);
     } else if (strcmp(v->fs_type, "ext4") == 0 ||
-               strcmp(v->fs_type, "squashfs") == 0 ||
-               strcmp(v->fs_type, "vfat") == 0) {
+               strcmp(v->fs_type, "ext3") == 0) {
         result = mount(v->blk_device, v->mount_point, v->fs_type,
-                       v->flags, v->fs_options);
+                       MS_NOATIME | MS_NODEV | MS_NODIRATIME, "");
         if (result == 0) return 0;
+
+        LOGE("failed to mount %s %s (%s)\n", v->mount_point, v->blk_device, strerror(errno));
+        return -1;
+    } else if (strcmp(v->fs_type, "vfat") == 0) {
+        result = mount(v->blk_device, v->mount_point, v->fs_type,
+                       MS_NOATIME | MS_NODEV | MS_NODIRATIME, "shortname=mixed,utf8");
+        if (result == 0) return 0;
+
+        LOGW("trying mount %s to ntfs\n", v->blk_device);
+		result = mount(v->blk_device, v->mount_point, "ntfs",
+						   MS_NOATIME | MS_NODEV | MS_NODIRATIME, "");
+		if (result == 0) return 0;
+
+		char *sec_dev = v->fs_options;
+		if(sec_dev != NULL) {
+			char *temp = strchr(sec_dev, ',');
+			if(temp) {
+				temp[0] = '\0';
+			}
+
+			result = mount(sec_dev, v->mount_point, v->fs_type,
+								   MS_NOATIME | MS_NODEV | MS_NODIRATIME, "shortname=mixed,utf8");
+			if (result == 0) return 0;
+
+			LOGW("trying mount %s to ntfs\n", sec_dev);
+			result = mount(sec_dev, v->mount_point, "ntfs",
+							   MS_NOATIME | MS_NODEV | MS_NODIRATIME, "");
+			if (result == 0) return 0;
+		}
+
+        LOGE("failed to mount %s (%s)\n", v->mount_point, strerror(errno));
+        return -1;
+    }else if (strcmp(v->fs_type, "ntfs") == 0) {
+		LOGW("trying mount %s to ntfs\n", v->blk_device);
+		result = mount(v->blk_device, v->mount_point, "ntfs",
+						   MS_NOATIME | MS_NODEV | MS_NODIRATIME, "");
+		if (result == 0) return 0;
 
         LOGE("failed to mount %s (%s)\n", v->mount_point, strerror(errno));
         return -1;
@@ -269,7 +309,32 @@ int format_volume(const char* volume) {
             result = exec_cmd(f2fs_path, (char* const*)f2fs_argv);
             free(num_sectors);
         }
+		
+	    
+		
         if (result != 0) {
+            LOGE("format_volume: make %s failed on %s with %d(%s)\n", v->fs_type, v->blk_device, result, strerror(errno));
+            return -1;
+        }
+        return 0;
+    }
+	
+	if (strcmp(v->fs_type, "vfat") == 0) {
+		LOGI("VolumeLabel: %s\n", gVolume_label);
+	    int result = make_vfat(v->blk_device,gVolume_label);
+		if (result != 0) { 
+            LOGE("format_volume: make %s failed on %s with %d(%s)\n", v->fs_type, v->blk_device, result, strerror(errno));
+            return -1;
+        }
+        return 0;
+	}
+    
+	if (strcmp(v->fs_type, "ntfs") == 0) {
+	  	ensure_path_mounted("/system");
+		LOGI("VolumeLabel: %s\n", gVolume_label);
+		int result = make_ntfs(v->blk_device,gVolume_label);
+		ensure_path_unmounted("/system");
+		if (result != 0) { 
             LOGE("format_volume: make %s failed on %s with %d(%s)\n", v->fs_type, v->blk_device, result, strerror(errno));
             return -1;
         }

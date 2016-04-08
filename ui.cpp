@@ -82,7 +82,7 @@ static void* InputThreadLoop(void*) {
 void RecoveryUI::Init() {
     ev_init(InputCallback, this);
 
-    ev_iterate_available_keys(std::bind(&RecoveryUI::OnKeyDetected, this, std::placeholders::_1));
+//  ev_iterate_available_keys(std::bind(&RecoveryUI::OnKeyDetected, this, std::placeholders::_1));
 
     pthread_create(&input_thread_, nullptr, InputThreadLoop, nullptr);
 }

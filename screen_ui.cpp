@@ -250,9 +250,9 @@ void ScreenRecoveryUI::draw_screen_locked() {
 
             SetColor(INFO);
             DrawTextLine(&y, "Android Recovery", true);
-            for (auto& chunk : android::base::Split(recovery_fingerprint, ":")) {
+/*            for (auto& chunk : android::base::Split(recovery_fingerprint, ":")) {
                 DrawTextLine(&y, chunk.c_str(), false);
-            }
+            }*/
             DrawTextLines(&y, HasThreeButtons() ? REGULAR_HELP : LONG_PRESS_HELP);
 
             SetColor(HEADER);

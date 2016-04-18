@@ -722,6 +722,17 @@ static void rotate_logs(int max) {
     ensure_path_mounted(LAST_KMSG_FILE);
 
     for (int i = max-1; i >= 0; --i) {
+
+        char old_log[30], new_log[30], old_kmsg[30], new_kmsg[30];
+
+        sprintf(old_log, (i == 0) ? "%s" : "%s.%d", LAST_LOG_FILE, i);
+        sprintf(new_log, "%s.%d", LAST_LOG_FILE, i+1);
+        rename(old_log, new_log);
+
+        sprintf(old_kmsg, (i == 0) ? "%s" : "%s.%d", LAST_KMSG_FILE, i);
+        sprintf(new_kmsg, "%s.%d", LAST_KMSG_FILE, i+1);
+        rename(old_kmsg, old_kmsg);
+        /* aosp code
         std::string old_log = android::base::StringPrintf((i == 0) ? "%s" : "%s.%d",
                 LAST_LOG_FILE, i);
         std::string new_log = android::base::StringPrintf("%s.%d", LAST_LOG_FILE, i+1);
@@ -731,7 +742,7 @@ static void rotate_logs(int max) {
         std::string old_kmsg = android::base::StringPrintf((i == 0) ? "%s" : "%s.%d",
                 LAST_KMSG_FILE, i);
         std::string new_kmsg = android::base::StringPrintf("%s.%d", LAST_KMSG_FILE, i+1);
-        rename(old_kmsg.c_str(), new_kmsg.c_str());
+        rename(old_kmsg.c_str(), new_kmsg.c_str());*/
     }
 }
 
@@ -789,7 +800,7 @@ finish_recovery(const char *send_intent) {
         check_and_fclose(fp, LOCALE_FILE);
     }
 
-    //copy_logs();
+    copy_logs();
 
     // Reset to normal system boot so recovery won't cycle indefinitely.
     if( bNeedClearMisc ) {
@@ -907,7 +918,7 @@ static bool erase_volume(const char* volume) {
         // Reset the pointer so we copy from the beginning of the temp
         // log.
         tmplog_offset = 0;
-        //copy_logs();
+        copy_logs();
     }
 
     return (result == 0);

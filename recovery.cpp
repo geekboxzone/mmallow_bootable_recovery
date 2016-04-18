@@ -789,7 +789,7 @@ finish_recovery(const char *send_intent) {
         check_and_fclose(fp, LOCALE_FILE);
     }
 
-    copy_logs();
+    //copy_logs();
 
     // Reset to normal system boot so recovery won't cycle indefinitely.
     if( bNeedClearMisc ) {
@@ -907,7 +907,7 @@ static bool erase_volume(const char* volume) {
         // Reset the pointer so we copy from the beginning of the temp
         // log.
         tmplog_offset = 0;
-        copy_logs();
+        //copy_logs();
     }
 
     return (result == 0);

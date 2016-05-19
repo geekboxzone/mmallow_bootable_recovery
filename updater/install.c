@@ -62,6 +62,7 @@ static int set_bootloader_message_mtd(const struct bootloader_message *in, const
 static int get_bootloader_message_mtd(struct bootloader_message *out, const Volume* v);
 static int set_bootloader_message_block(const struct bootloader_message *in, const Volume* v);
 static int get_bootloader_message_block(struct bootloader_message *out, const Volume* v);
+static void wait_for_device(const char* fn);
 static void load_volume_table();
 static Volume* volume_for_path(const char* path);
 static int parse_options(char* options, Volume* volume);

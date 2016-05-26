@@ -278,6 +278,7 @@ bool is_ro_debuggable() {
     return (property_get("ro.debuggable", value, NULL) == 1 && value[0] == '1');
 }
 
+void SetSdcardRootPath();
 static void redirect_stdio(const char* filename) {
     // If these fail, there's not really anywhere to complain...
     freopen(filename, "a", stdout); setbuf(stdout, NULL);
@@ -723,7 +724,7 @@ static void rotate_logs(int max) {
 
     for (int i = max-1; i >= 0; --i) {
 
-        char old_log[30], new_log[30], old_kmsg[30], new_kmsg[30];
+        char old_log[100], new_log[100], old_kmsg[100], new_kmsg[100];
 
         sprintf(old_log, (i == 0) ? "%s" : "%s.%d", LAST_LOG_FILE, i);
         sprintf(new_log, "%s.%d", LAST_LOG_FILE, i+1);
@@ -731,7 +732,7 @@ static void rotate_logs(int max) {
 
         sprintf(old_kmsg, (i == 0) ? "%s" : "%s.%d", LAST_KMSG_FILE, i);
         sprintf(new_kmsg, "%s.%d", LAST_KMSG_FILE, i+1);
-        rename(old_kmsg, old_kmsg);
+        rename(old_kmsg, new_kmsg);
         /* aosp code
         std::string old_log = android::base::StringPrintf((i == 0) ? "%s" : "%s.%d",
                 LAST_LOG_FILE, i);
@@ -799,8 +800,9 @@ finish_recovery(const char *send_intent) {
         fsync(fileno(fp));
         check_and_fclose(fp, LOCALE_FILE);
     }
-
+    #ifdef LogToCache
     copy_logs();
+    #endif
 
     // Reset to normal system boot so recovery won't cycle indefinitely.
     if( bNeedClearMisc ) {
@@ -918,7 +920,9 @@ static bool erase_volume(const char* volume) {
         // Reset the pointer so we copy from the beginning of the temp
         // log.
         tmplog_offset = 0;
+        #ifdef LogToCache
         copy_logs();
+        #endif
     }
 
     return (result == 0);
@@ -1262,7 +1266,9 @@ prompt_and_wait(Device* device, int status) {
                     if (status != INSTALL_SUCCESS) {
                         ui->SetBackground(RecoveryUI::ERROR);
                         ui->Print("Installation aborted.\n");
+                        #ifdef LogToCache
                         copy_logs();
+                        #endif
                     } else if (!ui->IsTextVisible()) {
                         return Device::NO_ACTION;  // reboot if logs aren't visible
                     } else {
@@ -1890,12 +1896,44 @@ finish:
 
 	return EXIT_SUCCESS;
 }
+
+void copy_log_to_sd(){
+
+    //add by kaihui --start
+    SetSdcardRootPath();
+    ensure_sd_mounted();
+    char *sdlogPath = (char *)malloc(100);
+    char *kernellogPath = (char *)malloc(100);
+    strcpy(sdlogPath, EX_SDCARD_ROOT);
+    strcat(sdlogPath, "/recovery.txt");
+    strcpy(kernellogPath, EX_SDCARD_ROOT);
+    strcat(kernellogPath, "/kernel.txt");
+    int i = 0;
+    for(i = 10; i >= 0; i--){
+        char old_log[150], new_log[150], old_kmsg[100], new_kmsg[100];
+        sprintf(old_log, (i == 0) ? "%s" : "%s.%d", sdlogPath, i);
+        sprintf(old_kmsg, (i == 0) ? "%s" : "%s.%d", kernellogPath, i);
+        sprintf(new_log, "%s.%d", sdlogPath, i+1);
+        sprintf(new_kmsg, "%s.%d", kernellogPath, i+1);
+        printf("old_log is %s, new_log is %s\n", old_log, new_log);
+        if(access(old_log, R_OK) != 0){
+            continue ;
+        }
+        rename(old_log, new_log);
+        rename(old_kmsg, new_kmsg);
+    }
+    redirect_stdio(sdlogPath);
+    copy_log_file(TEMPORARY_LOG_FILE, sdlogPath, true);
+    //add by kaihui --end
+}
+
 int
 main(int argc, char **argv) {
     time_t start = time(NULL);
 
     redirect_stdio(TEMPORARY_LOG_FILE);
 //redirect log to serial output
+#ifdef LogToSerial
 #ifdef TARGET_RK33xx
     freopen("/dev/ttyS2", "a", stdout); setbuf(stdout, NULL);
     freopen("/dev/ttyS2", "a", stderr); setbuf(stderr, NULL);
@@ -1903,7 +1941,7 @@ main(int argc, char **argv) {
     freopen("/dev/ttyFIQ0", "a", stdout); setbuf(stdout, NULL);
     freopen("/dev/ttyFIQ0", "a", stderr); setbuf(stderr, NULL);
 #endif
-
+#endif
     bool bFreeArg=false;
     bool bSDBoot=false;
 	bool bUsbBoot=false;
@@ -1927,6 +1965,9 @@ main(int argc, char **argv) {
 		bUsbBoot = true;
     load_volume_table();
     SetSdcardRootPath();
+#ifdef LogToSDCard
+    copy_log_to_sd();
+#endif
 /*    for(int n = 0; n < 2; n++) {
         if(0 == ensure_path_mounted(LAST_LOG_FILE)){
             break;
@@ -2213,7 +2254,9 @@ main(int argc, char **argv) {
 
 HANDLE_STATUS :
     if (!sideload_auto_reboot && (status == INSTALL_ERROR || status == INSTALL_CORRUPT)) {
+        #ifdef LogToCache
         copy_logs();
+        #endif
         ui->SetBackground(RecoveryUI::ERROR);
         bNeedClearMisc = true;
     }
@@ -2224,8 +2267,15 @@ HANDLE_STATUS :
 	    	ui->Print("Doing Actions succeeded.please remove the sdcard......\n");
 		else
 	    	ui->Print("Doing Actions failed!please remove the sdcard......\n");
+        #ifdef LogToSDCard
+        char *kernellogPath = (char *)malloc(100);
+        strcpy(kernellogPath, EX_SDCARD_ROOT);
+        strcat(kernellogPath, "/kernel.txt");
+        save_kernel_log(kernellogPath);
+        #endif
 		if (bSDMounted)
             checkSDRemoved();
+
     } else if (bUsbBoot) {
         ui->ShowText(true);
 		if (status==INSTALL_SUCCESS)

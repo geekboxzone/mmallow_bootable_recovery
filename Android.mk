@@ -56,6 +56,12 @@ RECOVERY_FSTAB_VERSION := 2
 LOCAL_CFLAGS += -DRECOVERY_API_VERSION=$(RECOVERY_API_VERSION)
 LOCAL_CFLAGS += -D_FILE_OFFSET_BITS=64
 
+#redirect to SDCARD、CACHE、UART
+#SDCARD: save log to sdcard
+#CACHE: save log to /cache/recovery/ dir
+#UART: redirect log to uart output
+RDIRECT_LOG_TO := UART
+
 LOCAL_C_INCLUDES := \
 	$(prebuilt_stdcxx_PATH)/gnu-libstdc++/include\
 	$(prebuilt_stdcxx_PATH)/gnu-libstdc++/libs/armeabi-v7a/include\
@@ -130,6 +136,19 @@ endif
 
 ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk3188)
 LOCAL_CFLAGS += -DTARGET_RK3188
+endif
+
+ifeq ($(strip $(REDIRECT_LOG_TO)),SDCARD)
+$(warning *** Redirect to SDCARD)
+LOCAL_CFLAGS += -DLogToSDCard
+endif
+
+ifeq ($(strip $(REDIRECT_LOG_TO)),UART)
+LOCAL_CFLAGS += -DLogToSerial
+endif
+
+ifeq ($(strip $(REDIRECT_LOG_TO)),CACHE)
+LOCAL_CFLAGS += -DLogToCache
 endif
 
 include $(BUILD_EXECUTABLE)

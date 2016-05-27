@@ -104,9 +104,12 @@ static void set_displayed_framebuffer(unsigned n)
         perror("active fb swap failed");
     }
 
-       if (ioctl(fb_fd,RK_FBIOSET_CONFIG_DONE, NULL) < 0) {
+    //do not set config done command for fb
+    /*
+    if (ioctl(fb_fd,RK_FBIOSET_CONFIG_DONE, NULL) < 0) {
        perror("set config done failed");
-    }	
+    }*/
+
     displayed_buffer = n;
 }
 

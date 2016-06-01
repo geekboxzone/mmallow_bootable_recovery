@@ -60,7 +60,7 @@ LOCAL_CFLAGS += -D_FILE_OFFSET_BITS=64
 #SDCARD: save log to sdcard
 #CACHE: save log to /cache/recovery/ dir
 #UART: redirect log to uart output
-RDIRECT_LOG_TO := UART
+REDIRECT_LOG_TO := UART
 
 LOCAL_C_INCLUDES := \
 	$(prebuilt_stdcxx_PATH)/gnu-libstdc++/include\
@@ -139,15 +139,17 @@ LOCAL_CFLAGS += -DTARGET_RK3188
 endif
 
 ifeq ($(strip $(REDIRECT_LOG_TO)),SDCARD)
-$(warning *** Redirect to SDCARD)
+$(warning *** Redirect log to SDCARD)
 LOCAL_CFLAGS += -DLogToSDCard
 endif
 
 ifeq ($(strip $(REDIRECT_LOG_TO)),UART)
+$(warning *** Redirect log to UART)
 LOCAL_CFLAGS += -DLogToSerial
 endif
 
 ifeq ($(strip $(REDIRECT_LOG_TO)),CACHE)
+$(warning *** Redirect log to CACHE)
 LOCAL_CFLAGS += -DLogToCache
 endif
 

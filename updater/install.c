@@ -103,6 +103,10 @@ static char* getDevicePath(char *mtdDevice) {
 		if(strstr(mtdDevice, "/dev/block/rknand_")) {
 			strcat(devicePath, mtdDevice+18);
 			printf("mtd device %s\n", devicePath);
+            if(!strcmp(devicePath, "/userdata")){
+                strcpy(devicePath, "/data");
+                printf("The path is /userdata, mtd device trans to %s\n", devicePath);
+            }
 			Volume* v = volume_for_path(devicePath);
 			if (v != NULL) {
 				printf("get volume path %s\n", v->blk_device);

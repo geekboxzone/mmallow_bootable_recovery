@@ -91,6 +91,7 @@ extern "C" {
 struct selabel_handle *sehandle;
 
 static const struct option OPTIONS[] = {
+  { "factory_mode", required_argument, NULL, 'f' },
   { "send_intent", required_argument, NULL, 'i' },
   { "update_package", required_argument, NULL, 'u' },
   { "update_rkimage", required_argument, NULL, 'k' },   // support rkimage to update
@@ -128,6 +129,7 @@ static char USB_DEVICE_PATH[128] = "\0";
 static char updatepath[128] = "\0";
 bool bNeedClearMisc=true;
 bool bAutoUpdateComplete = false;
+bool bFactoryMode = false;
 static const char *LAST_KMSG_FILE = "/cache/recovery/last_kmsg";
 #define KLOG_DEFAULT_LEN (64 * 1024)
 static const char *LAST_LOG_FILE = "/cache/recovery/last_log";
@@ -1771,7 +1773,7 @@ int sdtool_main(char *factory_mode, Device* device) {
 	int status = INSTALL_SUCCESS;
 	bool pcbaTestPass = true;
 
-	if(!strcmp(SdBootConfigs[pcba_test].value, "1")) {
+	if(!strcmp(SdBootConfigs[pcba_test].value, "1") || bFactoryMode == true) {
 		//pcba test
 		printf("enter pcba test!\n");
 
@@ -1932,15 +1934,10 @@ main(int argc, char **argv) {
     time_t start = time(NULL);
 
     redirect_stdio(TEMPORARY_LOG_FILE);
-//redirect log to serial output
+    //redirect log to serial output
 #ifdef LogToSerial
-#ifdef TARGET_RK33xx
-    freopen("/dev/ttyS2", "a", stdout); setbuf(stdout, NULL);
-    freopen("/dev/ttyS2", "a", stderr); setbuf(stderr, NULL);
-#else
     freopen("/dev/ttyFIQ0", "a", stdout); setbuf(stdout, NULL);
     freopen("/dev/ttyFIQ0", "a", stderr); setbuf(stderr, NULL);
-#endif
 #endif
     bool bFreeArg=false;
     bool bSDBoot=false;
@@ -2017,6 +2014,7 @@ main(int argc, char **argv) {
     int arg;
     while ((arg = getopt_long(argc, argv, "", OPTIONS, NULL)) != -1) {
         switch (arg) {
+        case 'f': factory_mode = optarg; bFactoryMode = true; break;
         case 'i': send_intent = optarg; break;
         case 'u': update_package = optarg; break;
         case 'w': should_wipe_data = true; break;
@@ -2098,6 +2096,11 @@ main(int argc, char **argv) {
 			sleep(2);
 		}
 	}
+
+    if(bFactoryMode == true){
+        sdtool_main(factory_mode, device);
+    }
+
     //boot from sdcard
     if(!check_sdboot() && !sdboot_update_package) {
 		printf("find sdfwupdate commandline!\n");

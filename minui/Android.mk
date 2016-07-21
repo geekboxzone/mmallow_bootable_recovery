@@ -12,10 +12,36 @@ LOCAL_SRC_FILES := \
 LOCAL_WHOLE_STATIC_LIBRARIES += libadf
 LOCAL_WHOLE_STATIC_LIBRARIES += libdrm
 LOCAL_STATIC_LIBRARIES += libpng
-
 LOCAL_MODULE := libminui
 
 LOCAL_CLANG := true
+
+#rotate screen to 0, 90, 180, 270
+#0:   rotate_0
+#90:  rotate_90
+#180: rotate_180
+#270: rotate_270
+ifeq ($(strip $(ROTATE_SCREEN)), rotate_0)
+$(warning rotate_0)
+	LOCAL_CFLAGS += -DRotateScreen_0
+endif
+ifeq ($(strip $(ROTATE_SCREEN)), rotate_90)
+$(warning rotate_90)
+	LOCAL_CFLAGS += -DRotateScreen_90
+endif
+ifeq ($(strip $(ROTATE_SCREEN)), rotate_180)
+$(warning rotate_180)
+	LOCAL_CFLAGS += -DRotateScreen_180
+endif
+ifeq ($(strip $(ROTATE_SCREEN)), rotate_270)
+$(warning rotate_270)
+	LOCAL_CFLAGS += -DRotateScreen_270
+endif
+
+#screen to duoble
+ifeq ($(strip $(DOUBLE_SCREEN)),YES)
+	LOCAL_CFLAGS += -DScreenToDouble
+endif
 
 # This used to compare against values in double-quotes (which are just
 # ordinary characters in this context).  Strip double-quotes from the

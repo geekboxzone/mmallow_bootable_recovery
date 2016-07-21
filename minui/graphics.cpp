@@ -34,7 +34,6 @@
 #include "font_10x18.h"
 #include "minui.h"
 #include "graphics.h"
-
 struct GRFont {
     GRSurface* texture;
     int cwidth;
@@ -52,12 +51,15 @@ static unsigned char gr_current_r = 255;
 static unsigned char gr_current_g = 255;
 static unsigned char gr_current_b = 255;
 static unsigned char gr_current_a = 255;
+unsigned int gr_get_row_bytes(GRSurface* surface);
+unsigned int gr_get_draw_width(GRSurface* surface);
+unsigned int gr_get_draw_height(GRSurface* surface);
 
 static GRSurface* gr_draw = NULL;
 
 static bool outside(int x, int y)
 {
-    return x < 0 || x >= gr_draw->width || y < 0 || y >= gr_draw->height;
+    return x < 0 || x >= gr_get_draw_width(gr_draw) || y < 0 || y >= gr_get_draw_height(gr_draw);
 }
 
 int gr_measure(const char *s)
@@ -110,26 +112,29 @@ void gr_text(int x, int y, const char *s, bool bold)
     if (!font->texture || gr_current_a == 0) return;
 
     bold = bold && (font->texture->height != font->cheight);
-
     x += overscan_offset_x;
     y += overscan_offset_y;
-
     unsigned char ch;
     while ((ch = *s++)) {
         if (outside(x, y) || outside(x+font->cwidth-1, y+font->cheight-1)) break;
-
+#ifdef ScreenToDouble
+        if((x+16) > gr_fb_width()/2 || outside(x+gr_fb_width()/2, y)){
+            break;
+        }
+#endif
         if (ch < ' ' || ch > '~') {
             ch = '?';
         }
 
         unsigned char* src_p = font->texture->data + ((ch - ' ') * font->cwidth) +
                                (bold ? font->cheight * font->texture->row_bytes : 0);
-        unsigned char* dst_p = gr_draw->data + y*gr_draw->row_bytes + x*gr_draw->pixel_bytes;
+        unsigned char* dst_p = gr_draw->data + y*gr_get_row_bytes(gr_draw) + x*gr_draw->pixel_bytes;
 
-        text_blend(src_p, font->texture->row_bytes,
-                   dst_p, gr_draw->row_bytes,
-                   font->cwidth, font->cheight);
-
+        text_blend(src_p, font->texture->row_bytes,dst_p, gr_get_row_bytes(gr_draw),font->cwidth, font->cheight);
+    #ifdef ScreenToDouble
+        dst_p = gr_draw->data + y*gr_get_row_bytes(gr_draw) + (x+gr_fb_width()/2)*gr_draw->pixel_bytes;
+        text_blend(src_p, font->texture->row_bytes,dst_p, gr_get_row_bytes(gr_draw),font->cwidth, font->cheight);
+    #endif
         x += font->cwidth;
     }
 }
@@ -142,17 +147,33 @@ void gr_texticon(int x, int y, GRSurface* icon) {
         return;
     }
 
+#ifdef ScreenToDouble
+    int textWidth = gr_get_width(icon);
+    int textHeight = gr_get_height(icon);
+    x = (gr_fb_width()/2-textWidth)/2;
+#endif
     x += overscan_offset_x;
     y += overscan_offset_y;
 
     if (outside(x, y) || outside(x+icon->width-1, y+icon->height-1)) return;
 
+#ifdef ScreenToDouble
+    if(x > gr_fb_width()/2){
+        return;
+    }
+#endif
     unsigned char* src_p = icon->data;
-    unsigned char* dst_p = gr_draw->data + y*gr_draw->row_bytes + x*gr_draw->pixel_bytes;
+    unsigned char* dst_p = gr_draw->data + y*gr_get_row_bytes(gr_draw) + x*gr_draw->pixel_bytes;
 
     text_blend(src_p, icon->row_bytes,
-               dst_p, gr_draw->row_bytes,
+               dst_p, gr_get_row_bytes(gr_draw),
                icon->width, icon->height);
+#ifdef ScreenToDouble
+    dst_p = gr_draw->data + y*gr_get_row_bytes(gr_draw) + (x+gr_fb_width()/2)*gr_draw->pixel_bytes;
+    text_blend(src_p, icon->row_bytes,
+               dst_p, gr_get_row_bytes(gr_draw),
+               icon->width, icon->height);
+#endif
 }
 
 void gr_color(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
@@ -198,7 +219,7 @@ void gr_fill(int x1, int y1, int x2, int y2)
 
     if (outside(x1, y1) || outside(x2-1, y2-1)) return;
 
-    unsigned char* p = gr_draw->data + y1 * gr_draw->row_bytes + x1 * gr_draw->pixel_bytes;
+    unsigned char* p = gr_draw->data + y1 * gr_get_row_bytes(gr_draw) + x1 * gr_draw->pixel_bytes;
     if (gr_current_a == 255) {
         int x, y;
         for (y = y1; y < y2; ++y) {
@@ -209,7 +230,7 @@ void gr_fill(int x1, int y1, int x2, int y2)
                 *px++ = gr_current_b;
                 px++;
             }
-            p += gr_draw->row_bytes;
+            p += gr_get_row_bytes(gr_draw);
         }
     } else if (gr_current_a > 0) {
         int x, y;
@@ -224,7 +245,7 @@ void gr_fill(int x1, int y1, int x2, int y2)
                 ++px;
                 ++px;
             }
-            p += gr_draw->row_bytes;
+            p += gr_get_row_bytes(gr_draw);
         }
     }
 }
@@ -236,23 +257,68 @@ void gr_blit(GRSurface* source, int sx, int sy, int w, int h, int dx, int dy) {
         printf("gr_blit: source has wrong format\n");
         return;
     }
-
+#ifdef ScreenToDouble
+    //重新定义x
+    int pos = dx-(gr_fb_width()-w)/2;
+    dx = (gr_fb_width()/2 - w) / 2 + pos;
+#endif
     dx += overscan_offset_x;
     dy += overscan_offset_y;
 
-    if (outside(dx, dy) || outside(dx+w-1, dy+h-1)) return;
+    while (outside(dx, dy) || outside(dx+w-1, dy+h-1)){
+        return ;
+        w = w - 4;
+        if(outside(dx, dy)){
+            return ;
+        }
+    }
 
     unsigned char* src_p = source->data + sy*source->row_bytes + sx*source->pixel_bytes;
-    unsigned char* dst_p = gr_draw->data + dy*gr_draw->row_bytes + dx*gr_draw->pixel_bytes;
+    unsigned char* dst_p = gr_draw->data + dy*gr_get_row_bytes(gr_draw) + dx*gr_draw->pixel_bytes;
+
 
     int i;
     for (i = 0; i < h; ++i) {
         memcpy(dst_p, src_p, w * source->pixel_bytes);
         src_p += source->row_bytes;
-        dst_p += gr_draw->row_bytes;
+        dst_p += gr_get_row_bytes(gr_draw);
     }
+#ifdef ScreenToDouble
+    src_p = source->data + sy*source->row_bytes + sx*source->pixel_bytes;
+    dst_p = gr_draw->data + dy*gr_get_row_bytes(gr_draw) + (dx+gr_fb_width()/2)*gr_draw->pixel_bytes;
+    for (i = 0; i < h; ++i) {
+        memcpy(dst_p, src_p, w * source->pixel_bytes);
+        src_p += source->row_bytes;
+        dst_p += gr_get_row_bytes(gr_draw);
+    }
+#endif
 }
 
+unsigned int gr_get_row_bytes(GRSurface* surface){
+    if(surface == NULL){
+        return 0;
+    }
+    return gr_get_draw_width(surface) * 4;
+}
+unsigned int gr_get_draw_width(GRSurface* surface) {
+    if (surface == NULL) {
+        return 0;
+    }
+#if (defined RotateScreen_90) || (defined RotateScreen_270)
+    return surface->height;
+#endif
+    return surface->width;
+}
+
+unsigned int gr_get_draw_height(GRSurface* surface) {
+    if (surface == NULL) {
+        return 0;
+    }
+#if (defined RotateScreen_90) || (defined RotateScreen_270)
+    return surface->width;
+#endif
+    return surface->height;
+}
 unsigned int gr_get_width(GRSurface* surface) {
     if (surface == NULL) {
         return 0;
@@ -301,6 +367,7 @@ static void gr_init_font(void)
         gr_font->cwidth = font.cwidth;
         gr_font->cheight = font.cheight;
     }
+
 }
 
 #if 0
@@ -352,6 +419,17 @@ static void gr_test() {
 }
 #endif
 
+//撤销旋转
+void back_no_rotate(){
+#ifdef RotateScreen_90
+    rk_rotate_surface_270(gr_draw, gr_draw->width, gr_draw->height);
+#elif defined RotateScreen_180
+    rk_rotate_surface_180(gr_draw);
+#elif defined RotateScreen_270
+    rk_rotate_surface_90(gr_draw, gr_draw->width, gr_draw->height);
+#endif
+
+}
 void gr_flip() {
     gr_draw = gr_backend->flip(gr_backend);
 }
@@ -381,8 +459,8 @@ int gr_init(void)
         }
     }
 
-    overscan_offset_x = gr_draw->width * overscan_percent / 100;
-    overscan_offset_y = gr_draw->height * overscan_percent / 100;
+    overscan_offset_x = gr_get_draw_width(gr_draw) * overscan_percent / 100;
+    overscan_offset_y = gr_get_draw_height(gr_draw) * overscan_percent / 100;
 
     gr_flip();
     gr_flip();
@@ -397,12 +475,12 @@ void gr_exit(void)
 
 int gr_fb_width(void)
 {
-    return gr_draw->width - 2*overscan_offset_x;
+    return (gr_get_draw_width(gr_draw) - 2*overscan_offset_x);
 }
 
 int gr_fb_height(void)
 {
-    return gr_draw->height - 2*overscan_offset_y;
+    return (gr_get_draw_height(gr_draw) - 2*overscan_offset_y);
 }
 
 void gr_fb_blank(bool blank)

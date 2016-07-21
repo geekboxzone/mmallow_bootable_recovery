@@ -79,6 +79,49 @@ void rk_rotate_surface_180(GRSurface* surface)
 
 }
 
+void rk_rotate_surface_90(GRSurface* surface, int width, int height){
+    int byt = 4; // 4 byte for ARGB_8888 (2 byte for RGB_565)
+    int length = width * height;
+    GGLubyte* des_data = (GGLubyte *)malloc(sizeof(GGLubyte)*length*byt);
+    memset(des_data, 0, sizeof(GGLubyte)*length*byt);
+    memcpy(des_data, surface->data, sizeof(GGLubyte)*length*byt);
+
+    int i, j;
+    int n1, n2;
+    for(i = 0; i < height; i++){
+        for(j = 0; j < width; j++){
+            n1 = j*height+height-i-1;
+            n2 = i*width+j;
+            surface->data[n1*byt] = des_data[n2*byt];
+            surface->data[n1*byt+1] = des_data[n2*byt+1];
+            surface->data[n1*byt+2] = des_data[n2*byt+2];
+            surface->data[n1*byt+3] = des_data[n2*byt+3];
+        }
+    }
+    free(des_data);
+}
+
+void rk_rotate_surface_270(GRSurface* surface, int width, int height){
+    int byt = 4; // 4 byte for ARGB_8888 (2 byte for RGB_565)
+    int length = width * height;
+    GGLubyte* des_data = (GGLubyte *)malloc(sizeof(GGLubyte)*length*byt);
+    memcpy(des_data, surface->data, sizeof(GGLubyte)*length*byt);
+    memset(surface->data, 0, sizeof(GGLubyte)*length*byt);
+    int i, j;
+    int n1, n2;
+    for(i = 0; i < height; i++){
+        for(j = 0; j < width; j++){
+            n1 = (width-j-1)*height+i;
+            n2 = i*width+j;
+            surface->data[n1*byt] = des_data[n2*byt];
+            surface->data[n1*byt+1] = des_data[n2*byt+1];
+            surface->data[n1*byt+2] = des_data[n2*byt+2];
+            surface->data[n1*byt+3] = des_data[n2*byt+3];
+        }
+    }
+
+    free(des_data);
+}
 
 minui_backend* open_fbdev() {
     return &my_backend;
@@ -167,6 +210,7 @@ static GRSurface* fbdev_init(minui_backend* backend) {
     vi.transp.length  = 8;
     vi.bits_per_pixel = 32;
     vi.nonstd = 2;
+
     void* bits = mmap(0, fi.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (bits == MAP_FAILED) {
         perror("failed to mmap framebuffer");
@@ -244,12 +288,20 @@ static GRSurface* fbdev_flip(minui_backend* backend __unused) {
 #ifdef BOARD_HAS_FLIPPED_SCREEN
         rk_rotate_surface_180( &gr_framebuffer[1-displayed_buffer]);
 #endif
+    #ifdef RotateScreen_90
+        rk_rotate_surface_90(&gr_framebuffer[1-displayed_buffer], gr_framebuffer[1-displayed_buffer].height, gr_framebuffer[1-displayed_buffer].width);
+    #elif defined RotateScreen_180
+        rk_rotate_surface_180(&gr_framebuffer[1-displayed_buffer]);
+    #elif defined RotateScreen_270
+        rk_rotate_surface_270(&gr_framebuffer[1-displayed_buffer], gr_framebuffer[1-displayed_buffer].height, gr_framebuffer[1-displayed_buffer].width);
+    #endif
         set_displayed_framebuffer(1-displayed_buffer);
     } else {
         // Copy from the in-memory surface to the framebuffer.
         memcpy(gr_framebuffer[0].data, gr_draw->data,
                gr_draw->height * gr_draw->row_bytes);
     }
+
     return gr_draw;
 }
 

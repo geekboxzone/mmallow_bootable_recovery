@@ -109,7 +109,6 @@ void ScreenRecoveryUI::draw_background_locked(Icon icon) {
 
         int textX = (gr_fb_width() - textWidth) / 2;
         int textY = ((gr_fb_height() - (iconHeight+textHeight+40+sh)) / 2) + iconHeight + 40;
-
         gr_blit(surface, 0, 0, iconWidth, iconHeight, iconX, iconY);
         if (stageHeight > 0) {
             int sw = gr_get_width(stageMarkerEmpty);
@@ -123,6 +122,7 @@ void ScreenRecoveryUI::draw_background_locked(Icon icon) {
         }
 
         gr_color(255, 255, 255, 255);
+
         gr_texticon(textX, textY, text_surface);
     }
 }
@@ -285,8 +285,8 @@ void ScreenRecoveryUI::draw_screen_locked() {
         int row = (text_top_ + text_rows_ - 1) % text_rows_;
         size_t count = 0;
         for (int ty = gr_fb_height() - char_height;
-             ty >= y && count < text_rows_;
-             ty -= char_height, ++count) {
+            ty >= y && count < text_rows_;
+            ty -= char_height, ++count) {
             gr_text(0, ty, text_[row], false);
             --row;
             if (row < 0) row = text_rows_ - 1;
@@ -297,6 +297,7 @@ void ScreenRecoveryUI::draw_screen_locked() {
 // Redraw everything on the screen and flip the screen (make it visible).
 // Should only be called with updateMutex locked.
 void ScreenRecoveryUI::update_screen_locked() {
+    back_no_rotate();
     draw_screen_locked();
     gr_flip();
 }
@@ -304,6 +305,7 @@ void ScreenRecoveryUI::update_screen_locked() {
 // Updates only the progress bar, if possible, otherwise redraws the screen.
 // Should only be called with updateMutex locked.
 void ScreenRecoveryUI::update_progress_locked() {
+    back_no_rotate();
     if (show_text || !pagesIdentical) {
         draw_screen_locked();    // Must redraw the whole screen
         pagesIdentical = true;

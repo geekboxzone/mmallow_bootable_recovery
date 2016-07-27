@@ -37,8 +37,13 @@ int transformPath(const char *in, char *out) {
 	}
 
 	printf("transformPath in: %s\n", in);
-	strcpy(out, "dev/block/platform/ff0f0000.rksdmmc/by-name/");
+#ifdef TARGET_RK3399
+    strcpy(out, "/dev/block/platform/fe330000.sdhci/by-name/");
+#else
+    strcpy(out, "/dev/block/platform/ff0f0000.rksdmmc/by-name/");
+#endif
 	strcat(out, in);
+    printf("transformPath out: %s\n", out);
 
 	return 0;
 }

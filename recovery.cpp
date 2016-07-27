@@ -444,13 +444,13 @@ int mount_usb_device()
 void ensure_sd_mounted()
 {
     int i;
-    for(i = 0; i < 10; i++) {
+    for(i = 0; i < 3; i++) {
         if(0 == ensure_path_mounted(EX_SDCARD_ROOT)){
             bSDMounted = true;
             break;
         }else {
-            printf("delay 2sec\n");
-            sleep(2);
+            printf("delay 1sec\n");
+            sleep(1);
         }
     }
 }
@@ -458,13 +458,13 @@ void ensure_sd_mounted()
 void ensure_usb_mounted()
 {
 	int i;
-    for(i = 0; i < 10; i++) {
+    for(i = 0; i < 3; i++) {
 		if(0 == mount_usb_device()){
 			bUsbMounted = true;
 			break;
 		}else {
-			printf("delay 2sec\n");
-			sleep(2);
+			printf("delay 1sec\n");
+			sleep(1);
 		}
 	}
 }

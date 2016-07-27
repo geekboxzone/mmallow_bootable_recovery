@@ -51,6 +51,8 @@ int setup_install_mounts();
 // and 0 if the partition was not wiped.
 int erase_persistent_partition();
 
+void ensure_usb_mounted();
+void ensure_sd_mounted();
 #ifdef __cplusplus
 }
 #endif

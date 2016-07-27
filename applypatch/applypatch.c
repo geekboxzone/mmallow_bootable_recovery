@@ -371,7 +371,7 @@ int WriteToPartition(unsigned char* data, size_t len,
 
     if (strcmp(magic, "MTD") == 0 && emmcEnabled == 0) {
         type = MTD;
-    } else if (strcmp(magic, "EMMC") == 0) {
+    } else if (strcmp(magic, "EMMC") == 0 || emmcEnabled == 1) {
         type = EMMC;
     } else {
         printf("WriteToPartition called with bad target (%s)\n", target);

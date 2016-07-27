@@ -209,6 +209,7 @@ really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
     // Map the update package into memory.
     ui->Print("Opening update package...\n");
 
+    char really_path[100];
     if (path && needs_mount) {
         if (path[0] == '@') {
             ensure_path_mounted(path+1);
@@ -216,12 +217,31 @@ really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
             ensure_path_mounted(path);
         }
     }
-
     MemMapping map;
-    if (sysMapFile(path, &map) != 0) {
+    if(strncmp(path, "/mnt/", 5) == 0){
+        //external_sd
+        LOGI("try to read update.zip from /mnt/external_sd");
+        strcpy(really_path, "/mnt/external_sd/");
+        ensure_sd_mounted();
+        strcat(really_path, "update.zip");
+        if(sysMapFile(really_path, &map) != 0){
+            //usb_storage
+            LOGI("try to read update.zip from /mnt/usb_storage");
+            strcpy(really_path, "/mnt/usb_storage/");
+            ensure_usb_mounted();
+            strcat(really_path, "update.zip");
+            if(sysMapFile(really_path, &map) != 0){
+                LOGE("failed to map file\n");
+                return INSTALL_CORRUPT;
+            }
+        }
+    }else if (sysMapFile(path, &map) != 0) {
         LOGE("failed to map file\n");
         return INSTALL_CORRUPT;
+    }else{
+        strcpy(really_path, path);
     }
+    LOGI("update.zip path is %s\n", really_path);
 
     int numKeys;
     Certificate* loadedKeys = load_keys(PUBLIC_KEYS_FILE, &numKeys);
@@ -248,7 +268,7 @@ really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
     ZipArchive zip;
     err = mzOpenZipArchive(map.addr, map.length, &zip);
     if (err != 0) {
-        LOGE("Can't open %s\n(%s)\n", path, err != -1 ? strerror(err) : "bad");
+        LOGE("Can't open %s\n(%s)\n", really_path, err != -1 ? strerror(err) : "bad");
         sysReleaseMap(&map);
         return INSTALL_CORRUPT;
     }
@@ -257,7 +277,7 @@ really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
      */
     ui->Print("Installing update...\n");
     ui->SetEnableReboot(false);
-    int result = try_update_binary(path, &zip, wipe_cache);
+    int result = try_update_binary(really_path, &zip, wipe_cache);
     ui->SetEnableReboot(true);
     ui->Print("\n");
 

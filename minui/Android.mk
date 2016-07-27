@@ -22,19 +22,15 @@ LOCAL_CLANG := true
 #180: rotate_180
 #270: rotate_270
 ifeq ($(strip $(ROTATE_SCREEN)), rotate_0)
-$(warning rotate_0)
 	LOCAL_CFLAGS += -DRotateScreen_0
 endif
 ifeq ($(strip $(ROTATE_SCREEN)), rotate_90)
-$(warning rotate_90)
 	LOCAL_CFLAGS += -DRotateScreen_90
 endif
 ifeq ($(strip $(ROTATE_SCREEN)), rotate_180)
-$(warning rotate_180)
 	LOCAL_CFLAGS += -DRotateScreen_180
 endif
 ifeq ($(strip $(ROTATE_SCREEN)), rotate_270)
-$(warning rotate_270)
 	LOCAL_CFLAGS += -DRotateScreen_270
 endif
 

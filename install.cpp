@@ -218,7 +218,7 @@ really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
         }
     }
     MemMapping map;
-    if(strncmp(path, "/mnt/", 5) == 0){
+    if(strncmp(path, "/mnt/media_rw", 13) == 0){
         //external_sd
         LOGI("try to read update.zip from /mnt/external_sd");
         strcpy(really_path, "/mnt/external_sd/");

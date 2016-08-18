@@ -29,6 +29,12 @@ LOCAL_STATIC_LIBRARIES += \
     libz
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM_PRODUCT), box)
+ifeq ($(strip $(TARGET_BOARD_PLATFORM)), rk3399)
+LOCAL_CFLAGS += -DDisableBoxSelinux
+endif
+endif
+
 LOCAL_STATIC_LIBRARIES += $(TARGET_RECOVERY_UPDATER_LIBS) $(TARGET_RECOVERY_UPDATER_EXTRA_LIBS)
 LOCAL_STATIC_LIBRARIES += libapplypatch libedify libmtdutils libminzip libz
 LOCAL_STATIC_LIBRARIES += libmincrypt libbz
@@ -45,6 +51,7 @@ LOCAL_STATIC_LIBRARIES += libtune2fs $(tune2fs_static_libraries)
 
 LOCAL_C_INCLUDES += external/e2fsprogs/misc
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/..
+
 
 # Each library in TARGET_RECOVERY_UPDATER_LIBS should have a function
 # named "Register_<libname>()".  Here we emit a little C function that

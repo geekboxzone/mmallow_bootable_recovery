@@ -7,8 +7,8 @@ LOCAL_SRC_FILES := \
 LOCAL_MODULE := librk_emmcutils
 LOCAL_STATIC_LIBRARIES = libcutils
 
-include $(BUILD_STATIC_LIBRARY)
-
-ifeq ($(strip $(TARGET_BOARD_PLATFORM)),rk3399)
+ifeq ($(strip $(TARGET_BOARD_PLATFORM)), rk3399)
 	LOCAL_CFLAGS += -DTARGET_RK3399
 endif
+
+include $(BUILD_STATIC_LIBRARY)

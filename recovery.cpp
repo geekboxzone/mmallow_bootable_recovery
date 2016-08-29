@@ -2205,10 +2205,19 @@ main(int argc, char **argv) {
             }
 		}
     } else if (should_wipe_data) {
+        printf("should_wipe_data=%d,should_wipe_cache=%d,wipe_all=%d\n",should_wipe_data,should_wipe_cache,should_wipe_all);
         if (!wipe_data(false, device)) {
             status = INSTALL_ERROR;
         }
         if(should_wipe_all) {
+            printf("begin to wipe frp partion!\n");
+            int ret;
+            ret = format_volume("/frp");
+            if(ret<0){
+               printf("wiping frp failed!\n");
+             } else {
+                printf("wiping frp success!\n");
+            }
         	printf("resize /system \n");
 			Volume* v = volume_for_path("/system");
 			if(rk_check_and_resizefs(v->blk_device)) {
